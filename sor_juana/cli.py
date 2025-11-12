@@ -4,7 +4,7 @@ import click
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
-from .workflows import build_corpus_workflow, init_dbos, shutdown_dbos
+from .workflows import build_corpus_workflow, export_csv_workflow, init_dbos, shutdown_dbos
 from .database import CorpusDatabase
 from .config import DATA_DIR
 
@@ -72,6 +72,39 @@ def export(format: str, output: str):
                     count = db.export_to_jsonl(output_path)
 
             console.print(f"\n[bold green]✓[/bold green] Exported {count} texts to [cyan]{output_path}[/cyan]\n")
+
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")
+        raise click.Abort()
+
+
+@main.command()
+@click.option("--output", "-o", type=click.Path(), help="Output file path (default: data/corpus.csv)")
+def export_csv(output: str):
+    """Export the corpus to CSV format using DBOS workflow."""
+    console.print("\n[bold cyan]Starting CSV export...[/bold cyan]\n")
+
+    try:
+        # Initialize DBOS
+        dbos = init_dbos()
+
+        # Determine output path
+        if output:
+            output_path = Path(output)
+        else:
+            output_path = DATA_DIR / "corpus.csv"
+
+        # Run workflow
+        with console.status("[bold green]Running DBOS export workflow..."):
+            result = export_csv_workflow(str(output_path))
+
+        # Display results
+        console.print("[bold green]✓[/bold green] CSV export completed!\n")
+        console.print(f"  Output: [cyan]{result['output_path']}[/cyan]")
+        console.print(f"  Exported: [cyan]{result['count']}[/cyan] texts\n")
+
+        # Shutdown DBOS
+        shutdown_dbos(dbos)
 
     except Exception as e:
         console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")

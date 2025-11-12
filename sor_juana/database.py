@@ -3,6 +3,7 @@
 import json
 from typing import List, Dict, Any
 import duckdb
+from textwrap import dedent
 from pathlib import Path
 from .config import DB_PATH
 
@@ -18,29 +19,34 @@ class CorpusDatabase:
 
     def _create_tables(self) -> None:
         """Create corpus table if it doesn't exist."""
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS sor_juana_corpus_id_seq START 1;")
         self.conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS sor_juana_corpus (
-                id INTEGER PRIMARY KEY,
-                title VARCHAR,
-                source VARCHAR,
-                genre VARCHAR,
-                url VARCHAR,
-                text TEXT,
-                metadata JSON,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            dedent(
+                """
+                CREATE TABLE IF NOT EXISTS sor_juana_corpus (
+                    id BIGINT PRIMARY KEY DEFAULT nextval('sor_juana_corpus_id_seq'),
+                    title VARCHAR,
+                    source VARCHAR,
+                    genre VARCHAR,
+                    url VARCHAR,
+                    text TEXT,
+                    metadata JSON,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
             )
-        """
         )
 
     def insert_text(self, text: str, metadata: Dict[str, Any]) -> int:
         """Insert a single text entry into the corpus."""
         result = self.conn.execute(
-            """
-            INSERT INTO sor_juana_corpus (title, source, genre, url, text, metadata)
-            VALUES (?, ?, ?, ?, ?, ?)
-            RETURNING id
-        """,
+            dedent(
+                """
+                INSERT INTO sor_juana_corpus (title, source, genre, url, text, metadata)
+                VALUES (?, ?, ?, ?, ?, ?)
+                RETURNING id
+                """
+            ),
             (
                 metadata.get("title", ""),
                 metadata.get("source", ""),
@@ -60,9 +66,12 @@ class CorpusDatabase:
     def get_all_texts(self) -> List[Dict[str, Any]]:
         """Retrieve all texts with metadata."""
         results = self.conn.execute(
-            """
-            SELECT id, text, metadata FROM sor_juana_corpus
-        """
+            dedent(
+                """
+                SELECT id, text, metadata
+                FROM sor_juana_corpus
+                """
+            )
         ).fetchall()
 
         return [{"id": row[0], "text": row[1], "metadata": json.loads(row[2]) if row[2] else {}} for row in results]
@@ -100,13 +109,47 @@ class CorpusDatabase:
             json.dump(corpus, f, ensure_ascii=False, indent=2)
         return len(texts)
 
+    def export_to_csv(self, output_path: Path) -> int:
+        """Export corpus to CSV file using DuckDB's native COPY TO functionality."""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use DuckDB's COPY TO CSV with proper column selection and JSON extraction
+        # DuckDB uses json_extract with -> operator for JSON extraction
+        query = dedent(
+            """
+            COPY (
+                SELECT 
+                    id,
+                    title,
+                    source,
+                    genre,
+                    url,
+                    json_extract(metadata, '$.page_number') AS page_number,
+                    json_extract(metadata, '$.chunk_number') AS chunk_number,
+                    json_extract(metadata, '$.chunk_type') AS chunk_type,
+                    text,
+                    metadata::VARCHAR AS metadata
+                FROM sor_juana_corpus
+            ) TO ? (FORMAT CSV, HEADER, DELIMITER ',')
+            """
+        )
+
+        self.conn.execute(query, (str(output_path),))
+
+        # Get count for return value
+        count = self.count()
+        return count
+
     def query_by_source(self, source: str) -> List[Dict[str, Any]]:
         """Get all texts from a specific source."""
         results = self.conn.execute(
-            """
-            SELECT id, text, metadata FROM sor_juana_corpus
-            WHERE source = ?
-        """,
+            dedent(
+                """
+                SELECT id, text, metadata
+                FROM sor_juana_corpus
+                WHERE source = ?
+                """
+            ),
             (source,),
         ).fetchall()
 

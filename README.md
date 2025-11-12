@@ -31,9 +31,6 @@ poetry install
 
 # Activate virtual environment
 poetry shell
-
-# Run the application
-python sor_juana_downloader.py
 ```
 
 #### Option 2: Using uv
@@ -45,9 +42,6 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies from pyproject.toml
 uv pip install -e .
-
-# Run the application
-python sor_juana_downloader.py
 ```
 
 #### Option 3: Using both (for development)
@@ -109,6 +103,8 @@ sor-juana export --format json -o corpus.json
 ```bash
 # List all texts
 sor-juana list
+# or explicitly
+sor-juana list --source all
 
 # List texts from specific source
 sor-juana list --source gutenberg

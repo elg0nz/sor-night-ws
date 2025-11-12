@@ -54,6 +54,33 @@ def deduplicate_corpus_step() -> int:
         return len(duplicate_ids)
 
 
+@DBOS.step()
+def export_csv_step(output_path: str) -> Dict[str, Any]:
+    """DBOS step for exporting corpus to CSV."""
+    from pathlib import Path
+
+    output = Path(output_path)
+    with CorpusDatabase() as db:
+        count = db.export_to_csv(output)
+        return {"output_path": str(output), "count": count}
+
+
+@DBOS.workflow()
+def export_csv_workflow(output_path: str) -> Dict[str, Any]:
+    """
+    DBOS workflow to export corpus to CSV.
+
+    Args:
+        output_path: Path where CSV file should be written
+
+    Returns:
+        Dictionary with export results
+    """
+    export_handle = queue.enqueue(export_csv_step, output_path)
+    result = export_handle.get_result()
+    return result
+
+
 @DBOS.workflow()
 def build_corpus_workflow() -> Dict[str, Any]:
     """
@@ -100,4 +127,4 @@ def init_dbos() -> DBOS:
 
 def shutdown_dbos(dbos: DBOS) -> None:
     """Shutdown DBOS."""
-    dbos.shutdown()
+    DBOS.destroy()
