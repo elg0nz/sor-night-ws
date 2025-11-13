@@ -14,8 +14,9 @@ DATA_DIR.mkdir(exist_ok=True)
 
 # DBOS Configuration
 DBOS_CONFIG: DBOSConfig = {
-    "name": "sor-juana-downloader",
+    "name": "downloader-0-0-1",
     "system_database_url": os.environ.get("DBOS_SYSTEM_DATABASE_URL"),
+    "conductor_key": os.environ.get("DBOS_CONDUCTOR_KEY", None),
 }
 
 # Download settings
