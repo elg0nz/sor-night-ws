@@ -5,10 +5,13 @@ A DBOS-powered application for downloading, processing, and deduplicating texts 
 ## Features
 
 - **Multi-source downloads**: Project Gutenberg, Wikisource, and Biblioteca Virtual Miguel de Cervantes
+- **Semantic HTML chunking**: Preserves document structure (headings, paragraphs, poetry) with rich metadata
 - **Intelligent text cleaning**: Removes headers, HTML tags, and normalizes text
 - **Deduplication**: Uses MinHash LSH for efficient similarity detection
 - **DBOS orchestration**: Reliable, durable workflow execution with concurrent downloads
 - **DuckDB storage**: Embedded analytical database for efficient corpus storage and querying
+- **Multiple export formats**: JSON, JSONL, and CSV export options
+- **Train/Eval splitting**: Random split with reproducible seeds for ML training datasets
 - **CLI interface**: User-friendly commands for building, exporting, and managing the corpus
 
 ## Setup
@@ -78,9 +81,11 @@ sor-juana build
 
 This will:
 1. Download texts from Project Gutenberg, Wikisource, and BVMC concurrently
-2. Clean and normalize the text
-3. Store texts in DuckDB
-4. Deduplicate using MinHash LSH
+2. Parse HTML content semantically to preserve document structure
+3. Extract chunks with metadata (headings, paragraphs, poetry, page numbers)
+4. Clean and normalize the text
+5. Store texts in DuckDB
+6. Deduplicate using MinHash LSH
 
 ### View statistics
 
@@ -96,7 +101,27 @@ sor-juana export --format jsonl --output corpus.jsonl
 
 # Export to JSON
 sor-juana export --format json -o corpus.json
+
+# Export to CSV using DuckDB native export
+sor-juana export-csv --output corpus.csv
 ```
+
+### Split into train/eval sets
+
+Split the corpus randomly into training and evaluation sets for ML model training:
+
+```bash
+# Default split (15% eval, seed=42)
+sor-juana split
+
+# Custom eval ratio (20% eval)
+sor-juana split --eval-ratio 0.2
+
+# Custom seed and output directory
+sor-juana split --seed 123 --output-dir ./splits
+```
+
+This creates `train.jsonl` and `eval.jsonl` files in the specified directory (default: `data/`).
 
 ### List texts
 
@@ -120,21 +145,40 @@ sor-juana clear
 
 ## Output
 
-The corpus is stored in DuckDB (`data/sor_juana.duckdb`) and can be exported to JSON or JSONL format:
+The corpus is stored in DuckDB (`data/sor_juana.duckdb`) and can be exported to JSON, JSONL, or CSV format.
 
-**JSONL format:**
+### Data Structure
+
+Each text chunk includes rich metadata:
+
+**JSONL/JSON format:**
 ```json
-{"text": "...", "metadata": {"source": "gutenberg", "title": "Obras selectas", ...}}
-{"text": "...", "metadata": {"source": "wikisource", "title": "...", ...}}
+{
+  "text": "El sexo llamado débil y mirado con desden...",
+  "metadata": {
+    "source": "gutenberg",
+    "title": "Obras selectas",
+    "url": "https://www.gutenberg.org/...",
+    "genre": "poetry_prose",
+    "chunk_number": 13,
+    "chunk_type": "paragraph",
+    "section_title": "BIOGRAFIA",
+    "section_hierarchy": ["BIOGRAFIA", "I"],
+    "page_number": null
+  }
+}
 ```
 
-**JSON format:**
-```json
-[
-  {"text": "...", "metadata": {"source": "gutenberg", "title": "Obras selectas", ...}},
-  {"text": "...", "metadata": {"source": "wikisource", "title": "...", ...}}
-]
-```
+**CSV format:**
+The CSV export includes columns: `id`, `title`, `source`, `genre`, `url`, `page_number`, `chunk_number`, `chunk_type`, `text`, and `metadata` (as JSON string).
+
+### Train/Eval Splits
+
+After running `sor-juana split`, you'll have:
+- `data/train.jsonl` - Training set (85% by default)
+- `data/eval.jsonl` - Evaluation set (15% by default)
+
+Both files follow the same JSONL format as above.
 
 ## Development
 
@@ -169,7 +213,9 @@ sor-night-ws/
 │   ├── processing.py         # Text cleaning and deduplication
 │   └── workflows.py          # DBOS workflows
 ├── data/                     # Generated data directory
-│   └── sor_juana.duckdb      # DuckDB database
+│   ├── sor_juana.duckdb      # DuckDB database
+│   ├── train.jsonl          # Training set (after split)
+│   └── eval.jsonl           # Evaluation set (after split)
 ├── pyproject.toml            # Poetry configuration
 ├── .python-version           # Python version for uv
 ├── README.md                 # This file
