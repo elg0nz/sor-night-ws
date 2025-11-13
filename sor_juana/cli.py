@@ -189,6 +189,75 @@ def list(source: str):
 
 
 @main.command()
+@click.option(
+    "--eval-ratio",
+    type=float,
+    default=0.15,
+    help="Proportion of data for eval set (default: 0.15 = 15%%)",
+)
+@click.option("--seed", type=int, default=42, help="Random seed for reproducibility (default: 42)")
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    help="Output directory for train.jsonl and eval.jsonl (default: data/)",
+)
+def split(eval_ratio: float, seed: int, output_dir: str):
+    """Split corpus into train and eval sets and save as JSONL files."""
+    console.print("\n[bold cyan]Splitting corpus into train/eval sets...[/bold cyan]\n")
+
+    try:
+        with CorpusDatabase() as db:
+            total = db.count()
+
+            if total == 0:
+                console.print("\n[yellow]Corpus is empty. Run 'sor-juana build' first.[/yellow]\n")
+                return
+
+            # Validate eval_ratio
+            if not 0.1 <= eval_ratio <= 0.2:
+                console.print(
+                    f"\n[yellow]Warning: eval_ratio {eval_ratio:.1%} is outside recommended 10-20% range.[/yellow]\n"
+                )
+
+            # Determine output directory
+            if output_dir:
+                output_path = Path(output_dir)
+            else:
+                output_path = DATA_DIR
+
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            # Perform split
+            with console.status("[bold green]Splitting corpus..."):
+                counts = db.split_train_eval(eval_ratio=eval_ratio, seed=seed)
+
+            console.print("[bold green]✓[/bold green] Split completed!\n")
+            console.print(f"  Total texts: [cyan]{total}[/cyan]")
+            console.print(f"  Train set: [green]{counts['train']}[/green] ({counts['train']/total:.1%})")
+            console.print(f"  Eval set: [yellow]{counts['eval']}[/yellow] ({counts['eval']/total:.1%})")
+            console.print(f"  Random seed: [dim]{seed}[/dim]\n")
+
+            # Export train set
+            train_path = output_path / "train.jsonl"
+            with console.status(f"[bold green]Exporting train set to {train_path}..."):
+                train_count = db.export_split_to_jsonl("train", train_path)
+
+            # Export eval set
+            eval_path = output_path / "eval.jsonl"
+            with console.status(f"[bold green]Exporting eval set to {eval_path}..."):
+                eval_count = db.export_split_to_jsonl("eval", eval_path)
+
+            console.print("\n[bold green]✓[/bold green] Export completed!\n")
+            console.print(f"  Train: [cyan]{train_path}[/cyan] ({train_count} texts)")
+            console.print(f"  Eval: [cyan]{eval_path}[/cyan] ({eval_count} texts)\n")
+
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")
+        raise click.Abort()
+
+
+@main.command()
 @click.confirmation_option(prompt="Are you sure you want to clear the entire corpus?")
 def clear():
     """Clear all texts from the corpus (requires confirmation)."""
