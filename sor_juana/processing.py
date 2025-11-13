@@ -217,6 +217,175 @@ def extract_gutenberg_chunks(raw_html: str) -> List[Dict[str, Any]]:
     return chunks
 
 
+def extract_bvmc_chunks(raw_html: str, source_url: str) -> List[Dict[str, Any]]:
+    """
+    Parse BVMC HTML content into semantically meaningful chunks.
+
+    Args:
+        raw_html: HTML document string from BVMC.
+        source_url: URL of the source document.
+
+    Returns:
+        List of chunk dictionaries containing text and rich metadata.
+    """
+    soup = BeautifulSoup(raw_html, "html.parser")
+    for tag in soup(["script", "style", "nav", "header", "footer"]):
+        tag.decompose()
+
+    # Find main content area - BVMC uses different structures
+    content_div = (
+        soup.find("div", {"id": "contenido"})
+        or soup.find("main")
+        or soup.find("article")
+        or soup.find("div", class_="obra")
+        or soup.find("div", class_="content")
+        or soup.find("body")
+    )
+    if not content_div:
+        return []
+
+    # Extract title
+    title_tag = soup.find("h1") or soup.find("title")
+    document_title = _normalize_whitespace(title_tag.get_text()) if title_tag else "BVMC Document"
+
+    chunks: List[Dict[str, Any]] = []
+    heading_stack: Dict[int, str] = {}
+
+    def current_section_title() -> Optional[str]:
+        if not heading_stack:
+            return None
+        max_level = max(heading_stack.keys())
+        return heading_stack[max_level]
+
+    def section_hierarchy() -> List[str]:
+        return [heading_stack[key] for key in sorted(heading_stack.keys())]
+
+    def add_chunk(text: str, chunk_type: str, *, preserve_newlines: bool = False) -> None:
+        if not text:
+            return
+
+        normalized = _normalize_whitespace(text, preserve_newlines=preserve_newlines)
+        if not normalized:
+            return
+
+        if chunk_type not in {"heading", "poetry"} and len(normalized) < 40:
+            return
+
+        chunk: Dict[str, Any] = {
+            "text": normalized if chunk_type != "poetry" else text.strip(),
+            "chunk_number": len(chunks) + 1,
+            "chunk_type": chunk_type,
+            "parent_title": document_title,
+            "section_title": current_section_title(),
+            "section_hierarchy": section_hierarchy(),
+            "source_url": source_url,
+        }
+        chunks.append(chunk)
+
+    def extract_text(element, preserve_newlines: bool = False) -> str:
+        if preserve_newlines:
+            return "\n".join(line.strip() for line in element.get_text(separator="\n").splitlines() if line.strip())
+        return element.get_text(separator=" ", strip=True)
+
+    def process_element(element) -> None:
+        nonlocal heading_stack
+        if element.name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            level = int(element.name[1])
+            heading_text = extract_text(element)
+            if heading_text:
+                heading_stack[level] = heading_text
+                # Clear lower-level headings
+                heading_stack = {k: v for k, v in heading_stack.items() if k <= level}
+                add_chunk(heading_text, "heading")
+            return
+
+        if element.name == "p":
+            para_text = extract_text(element)
+            if para_text:
+                add_chunk(para_text, "paragraph")
+            return
+
+        if element.name in {"div", "section"}:
+            classes = element.get("class") or []
+            if any(cls in {"poem", "poetry", "verse", "verso"} for cls in classes):
+                poem_text = extract_text(element, preserve_newlines=True)
+                add_chunk(poem_text, "poetry", preserve_newlines=True)
+                return
+
+        # Process children recursively
+        for child in element.children:
+            if hasattr(child, "name"):
+                process_element(child)
+
+    process_element(content_div)
+    return chunks
+
+
+def extract_wikisource_chunks(wiki_content: str, page_name: str, source_url: str) -> List[Dict[str, Any]]:
+    """
+    Parse Wikisource wiki markup content into semantically meaningful chunks.
+
+    Args:
+        wiki_content: Wiki markup content from Wikisource.
+        page_name: Name of the Wikisource page.
+        source_url: URL of the source page.
+
+    Returns:
+        List of chunk dictionaries containing text and rich metadata.
+    """
+    chunks: List[Dict[str, Any]] = []
+
+    # Split by double newlines (paragraph breaks)
+    paragraphs = [p.strip() for p in wiki_content.split("\n\n") if p.strip()]
+
+    # Remove wiki markup patterns (simplified)
+    import re
+
+    # Remove headers (== Title ==)
+    header_pattern = re.compile(r"^=+\s*(.+?)\s*=+$", re.MULTILINE)
+
+    for i, para in enumerate(paragraphs):
+        # Skip very short paragraphs
+        if len(para) < 40:
+            continue
+
+        # Check if it's a header
+        header_match = header_pattern.match(para)
+        if header_match:
+            heading_text = header_match.group(1).strip()
+            chunk_type = "heading"
+            text = heading_text
+        else:
+            # Clean wiki markup
+            text = para
+            # Remove [[links]] but keep text
+            text = re.sub(r"\[\[([^\]]+)\]\]", r"\1", text)
+            # Remove '''bold''' and ''italic''
+            text = re.sub(r"'''(.+?)'''", r"\1", text)
+            text = re.sub(r"''(.+?)''", r"\1", text)
+            # Remove {{templates}}
+            text = re.sub(r"\{\{[^}]+\}\}", "", text)
+            # Remove HTML tags
+            text = re.sub(r"<[^>]+>", "", text)
+            # Clean up whitespace
+            text = _normalize_whitespace(text)
+            chunk_type = "paragraph"
+
+        if text and len(text) >= 40:
+            chunk: Dict[str, Any] = {
+                "text": text,
+                "chunk_number": len(chunks) + 1,
+                "chunk_type": chunk_type,
+                "parent_title": page_name,
+                "section_title": None,
+                "section_hierarchy": [],
+                "source_url": source_url,
+            }
+            chunks.append(chunk)
+
+    return chunks
+
+
 class TextDeduplicator:
     """Deduplicates texts using MinHash LSH."""
 
