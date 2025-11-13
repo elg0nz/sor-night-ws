@@ -1,6 +1,7 @@
 """DuckDB database operations for corpus storage."""
 
 import json
+import random
 from typing import List, Dict, Any
 import duckdb
 from textwrap import dedent
@@ -154,6 +155,114 @@ class CorpusDatabase:
         ).fetchall()
 
         return [{"id": row[0], "text": row[1], "metadata": json.loads(row[2]) if row[2] else {}} for row in results]
+
+    def split_train_eval(self, eval_ratio: float = 0.15, seed: int = 42) -> Dict[str, int]:
+        """
+        Randomly split corpus into train and eval sets.
+
+        Args:
+            eval_ratio: Proportion of data to use for eval (default: 0.15 = 15%)
+            seed: Random seed for reproducibility (default: 42)
+
+        Returns:
+            Dictionary with counts for train and eval sets
+        """
+        # Add split column if it doesn't exist
+        try:
+            self.conn.execute("ALTER TABLE sor_juana_corpus ADD COLUMN split VARCHAR;")
+        except Exception:
+            # Column already exists, ignore
+            pass
+
+        # Clear existing splits
+        self.conn.execute("UPDATE sor_juana_corpus SET split = NULL;")
+
+        # Get all IDs and randomly assign splits
+        total_count = self.count()
+        eval_count = int(total_count * eval_ratio)
+
+        # Get all IDs
+        all_ids = [row[0] for row in self.conn.execute("SELECT id FROM sor_juana_corpus").fetchall()]
+
+        # Set random seed for reproducibility
+        random.seed(seed)
+        # Shuffle IDs randomly
+        random.shuffle(all_ids)
+
+        # Assign eval IDs
+        eval_ids = set(all_ids[:eval_count])
+        train_ids = set(all_ids[eval_count:])
+
+        # Update database with splits
+        eval_placeholders = ",".join("?" * len(eval_ids))
+        train_placeholders = ",".join("?" * len(train_ids))
+
+        if eval_ids:
+            self.conn.execute(
+                f"UPDATE sor_juana_corpus SET split = 'eval' WHERE id IN ({eval_placeholders})",
+                list(eval_ids),
+            )
+        if train_ids:
+            self.conn.execute(
+                f"UPDATE sor_juana_corpus SET split = 'train' WHERE id IN ({train_placeholders})",
+                list(train_ids),
+            )
+
+        # Verify counts
+        result = self.conn.execute("SELECT split, COUNT(*) FROM sor_juana_corpus GROUP BY split").fetchall()
+
+        counts = {"train": 0, "eval": 0}
+        for row in result:
+            if row[0] == "train":
+                counts["train"] = row[1]
+            elif row[0] == "eval":
+                counts["eval"] = row[1]
+
+        return counts
+
+    def get_split_texts(self, split: str) -> List[Dict[str, Any]]:
+        """
+        Get texts for a specific split (train or eval).
+
+        Args:
+            split: 'train' or 'eval'
+
+        Returns:
+            List of text dictionaries
+        """
+        results = self.conn.execute(
+            dedent(
+                """
+                SELECT id, text, metadata
+                FROM sor_juana_corpus
+                WHERE split = ?
+                """
+            ),
+            (split,),
+        ).fetchall()
+
+        return [{"id": row[0], "text": row[1], "metadata": json.loads(row[2]) if row[2] else {}} for row in results]
+
+    def export_split_to_jsonl(self, split: str, output_path: Path) -> int:
+        """
+        Export a specific split to JSONL file.
+
+        Args:
+            split: 'train' or 'eval'
+            output_path: Path to output file
+
+        Returns:
+            Number of texts exported
+        """
+        texts = self.get_split_texts(split)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            for item in texts:
+                entry = {"text": item["text"], "metadata": item["metadata"]}
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+        return len(texts)
 
     def clear_all(self) -> None:
         """Clear all entries from corpus."""
