@@ -7,6 +7,9 @@ from .database import CorpusDatabase
 from .downloaders import GutenbergDownloader, WikisourceDownloader, BVMCDownloader
 from .processing import TextDeduplicator
 
+# DBOS Configuration - must be at module level
+DBOS(config=DBOS_CONFIG)
+
 # Queue for concurrent downloads
 queue = Queue("download_queue")
 
@@ -118,13 +121,11 @@ def build_corpus_workflow() -> Dict[str, Any]:
     }
 
 
-def init_dbos() -> DBOS:
-    """Initialize and launch DBOS."""
-    dbos = DBOS(config=DBOS_CONFIG)
-    dbos.launch()
-    return dbos
+def launch_dbos() -> None:
+    """Launch DBOS for workflow execution."""
+    DBOS.launch()
 
 
-def shutdown_dbos(dbos: DBOS) -> None:
-    """Shutdown DBOS."""
+def shutdown_dbos() -> None:
+    """Shutdown DBOS after workflow execution."""
     DBOS.destroy()

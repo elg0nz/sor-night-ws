@@ -4,7 +4,7 @@ import click
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
-from .workflows import build_corpus_workflow, export_csv_workflow, init_dbos, shutdown_dbos
+from .workflows import build_corpus_workflow, export_csv_workflow, launch_dbos, shutdown_dbos
 from .database import CorpusDatabase
 from .config import DATA_DIR
 
@@ -24,8 +24,8 @@ def build():
     console.print("\n[bold cyan]Starting corpus build...[/bold cyan]\n")
 
     try:
-        # Initialize DBOS
-        dbos = init_dbos()
+        # Launch DBOS
+        launch_dbos()
 
         # Run workflow
         with console.status("[bold green]Running DBOS workflow..."):
@@ -39,7 +39,7 @@ def build():
         console.print(f"  Final count: [bold green]{result['final_count']}[/bold green] texts\n")
 
         # Shutdown DBOS
-        shutdown_dbos(dbos)
+        shutdown_dbos()
 
     except Exception as e:
         console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")
@@ -85,8 +85,8 @@ def export_csv(output: str):
     console.print("\n[bold cyan]Starting CSV export...[/bold cyan]\n")
 
     try:
-        # Initialize DBOS
-        dbos = init_dbos()
+        # Launch DBOS
+        launch_dbos()
 
         # Determine output path
         if output:
@@ -104,7 +104,7 @@ def export_csv(output: str):
         console.print(f"  Exported: [cyan]{result['count']}[/cyan] texts\n")
 
         # Shutdown DBOS
-        shutdown_dbos(dbos)
+        shutdown_dbos()
 
     except Exception as e:
         console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")
