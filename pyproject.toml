@@ -21,6 +21,7 @@ lxml = "^5.0.0"
 duckdb = "^1.0.0"
 click = "^8.1.0"
 rich = "^13.0.0"
+openai = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

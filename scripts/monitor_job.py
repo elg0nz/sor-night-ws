@@ -9,7 +9,6 @@ Usage:
 import os
 import sys
 import time
-from pathlib import Path
 
 try:
     from openai import OpenAI
@@ -52,7 +51,7 @@ def get_job_status(client: OpenAI, job_id: str):
         table.add_row("Error", str(job.error))
 
     # Add training metrics if available
-    if hasattr(job, 'result_files') and job.result_files:
+    if hasattr(job, "result_files") and job.result_files:
         table.add_row("Result Files", str(len(job.result_files)))
 
     console.print(table)
@@ -94,18 +93,20 @@ def monitor_until_complete(client: OpenAI, job_id: str, poll_interval: int = 60)
                     console.print("\n[green]✓ Fine-tuning completed successfully![/green]")
                     console.print(f"\n[bold green]Fine-tuned model:[/bold green] {job.fine_tuned_model}")
 
-                    console.print(Panel.fit(
-                        f"[bold green]Training Complete![/bold green]\n\n"
-                        f"Model ID: [cyan]{job.fine_tuned_model}[/cyan]\n\n"
-                        f"Use it in your code:\n"
-                        f"[yellow]from openai import OpenAI\n"
-                        f"client = OpenAI()\n"
-                        f"response = client.chat.completions.create(\n"
-                        f"    model='{job.fine_tuned_model}',\n"
-                        f"    messages=[...]\n"
-                        f")[/yellow]",
-                        border_style="green"
-                    ))
+                    console.print(
+                        Panel.fit(
+                            f"[bold green]Training Complete![/bold green]\n\n"
+                            f"Model ID: [cyan]{job.fine_tuned_model}[/cyan]\n\n"
+                            f"Use it in your code:\n"
+                            f"[yellow]from openai import OpenAI\n"
+                            f"client = OpenAI()\n"
+                            f"response = client.chat.completions.create(\n"
+                            f"    model='{job.fine_tuned_model}',\n"
+                            f"    messages=[...]\n"
+                            f")[/yellow]",
+                            border_style="green",
+                        )
+                    )
                     return
 
                 elif status in ["failed", "cancelled"]:
@@ -145,7 +146,7 @@ def main():
         console.print("Monitor until completion? [Y/n]: ", end="")
 
         response = input().strip().lower()
-        if response in ['', 'y', 'yes']:
+        if response in ["", "y", "yes"]:
             monitor_until_complete(client, job_id)
 
 

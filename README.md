@@ -143,6 +143,110 @@ sor-juana list --source bvmc
 sor-juana clear
 ```
 
+## Training Scripts
+
+The `scripts/` directory contains utilities for fine-tuning language models on Sor Juana's writing style:
+
+### OpenAI Fine-tuning
+
+#### Train a model (OpenAI API)
+
+Train a GPT-4o-mini model using OpenAI's fine-tuning API:
+
+```bash
+python scripts/train_openai.py
+```
+
+This script:
+1. Loads training and evaluation data from `data/train.jsonl` and `data/eval.jsonl`
+2. Transforms the corpus into OpenAI's chat format
+3. Uploads training files to OpenAI
+4. Creates and monitors a fine-tuning job
+5. Saves the fine-tuned model ID to `data/openai_training/fine_tuned_model.json`
+
+**Requirements:**
+- Set `OPENAI_API_KEY` environment variable
+- Install dependencies: `pip install openai rich`
+- Run `sor-juana split` first to generate train/eval sets
+
+**Configuration:**
+- Base model: `gpt-4o-mini-2024-07-18`
+- Default epochs: 3
+- Batch size: Auto
+- Learning rate multiplier: Auto
+
+#### Monitor a training job
+
+Check the status of an existing fine-tuning job:
+
+```bash
+python scripts/monitor_job.py <job_id>
+```
+
+Features:
+- Real-time status updates
+- Training metrics display
+- Event log streaming
+- Auto-refresh (Ctrl+C to exit)
+
+#### Test a fine-tuned model
+
+Generate text using your fine-tuned model:
+
+```bash
+# Use saved model ID
+python scripts/test_model.py
+
+# Use specific model ID
+python scripts/test_model.py ft:gpt-4o-mini-2024-07-18:org:model-id:suffix
+```
+
+Testing modes:
+1. **Predefined prompts** - Run curated test prompts in Spanish
+2. **Base model comparison** - Compare fine-tuned vs base model outputs
+3. **Interactive mode** - Enter custom prompts interactively
+
+### Local Training (Apple Silicon)
+
+#### Fine-tune locally with MLX
+
+For Apple Silicon Macs (M1/M2/M3/M4), use MLX for local training:
+
+```bash
+python scripts/local-training.py --csv sor_juana_corpus.csv
+```
+
+This script:
+1. Loads CSV data with `prompt` and `completion` columns
+2. Splits into training/evaluation sets (80/20)
+3. Fine-tunes using MLX (optimized for Apple Silicon)
+4. Evaluates model with custom Sor Juana authenticity metrics
+5. Saves evaluation results to JSON
+
+**Evaluation Metrics:**
+- **Baroque style** (0-1): Rhetorical features, complex sentences
+- **Thematic alignment** (0-1): Feminist/intellectual/theological themes
+- **Linguistic authenticity** (0-1): Period-appropriate vocabulary
+- **Structural coherence** (0-1): Sonnet/décima structure, rhyme patterns
+- **Overall score** (1-5): Weighted composite score
+
+**Options:**
+```bash
+# Evaluation only (no training)
+python scripts/local-training.py --csv data.csv --eval-only
+
+# Custom model
+python scripts/local-training.py --csv data.csv --model meta-llama/Llama-2-7b
+
+# Generate sample with authenticity scoring
+python scripts/local-training.py --csv data.csv --sample-prompt "Escribe un soneto sobre el conocimiento"
+```
+
+**Requirements:**
+- Apple Silicon Mac (M1/M2/M3/M4)
+- Install: `pip install mlx mlx-lm transformers torch`
+- CSV file with `prompt` and `completion` columns
+
 ## Output
 
 The corpus is stored in DuckDB (`data/sor_juana.duckdb`) and can be exported to JSON, JSONL, or CSV format.

@@ -22,7 +22,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 try:
     from openai import OpenAI
@@ -104,9 +104,7 @@ def transform_to_openai_format(input_file: Path, output_file: Path, max_examples
 
     examples_processed = 0
 
-    with open(input_file, 'r', encoding='utf-8') as infile, \
-         open(output_file, 'w', encoding='utf-8') as outfile:
-
+    with open(input_file, "r", encoding="utf-8") as infile, open(output_file, "w", encoding="utf-8") as outfile:
         for line in infile:
             if max_examples and examples_processed >= max_examples:
                 break
@@ -133,7 +131,7 @@ def transform_to_openai_format(input_file: Path, output_file: Path, max_examples
                 "messages": [
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_prompt},
-                    {"role": "assistant", "content": text}
+                    {"role": "assistant", "content": text},
                 ]
             }
 
@@ -170,7 +168,7 @@ def create_fine_tuning_job(
     training_file_id: str,
     validation_file_id: Optional[str] = None,
     model: str = "gpt-4o-mini-2024-07-18",
-    suffix: Optional[str] = "sor-juana"
+    suffix: Optional[str] = "sor-juana",
 ) -> str:
     """
     Create a fine-tuning job on OpenAI.
@@ -185,7 +183,7 @@ def create_fine_tuning_job(
     Returns:
         Fine-tuning job ID
     """
-    console.print(f"[cyan]Creating fine-tuning job...[/cyan]")
+    console.print("[cyan]Creating fine-tuning job...[/cyan]")
 
     job_params = {
         "training_file": training_file_id,
@@ -254,28 +252,32 @@ def monitor_fine_tuning_job(client: OpenAI, job_id: str, poll_interval: int = 60
 
                     # Save model info
                     model_info_file = OUTPUT_DIR / "fine_tuned_model.json"
-                    with open(model_info_file, 'w') as f:
-                        json.dump({
-                            "job_id": job_id,
-                            "model_id": job.fine_tuned_model,
-                            "status": status,
-                            "created_at": job.created_at,
-                            "finished_at": job.finished_at,
-                        }, f, indent=2)
+                    with open(model_info_file, "w") as f:
+                        json.dump(
+                            {
+                                "job_id": job_id,
+                                "model_id": job.fine_tuned_model,
+                                "status": status,
+                                "created_at": job.created_at,
+                                "finished_at": job.finished_at,
+                            },
+                            f,
+                            indent=2,
+                        )
 
                     console.print(f"[green]Model info saved to: {model_info_file}[/green]")
                     return job.fine_tuned_model
 
                 elif status == "failed":
                     progress.stop()
-                    console.print(f"\n[red]❌ Fine-tuning failed[/red]")
+                    console.print("\n[red]❌ Fine-tuning failed[/red]")
                     if job.error:
                         console.print(f"[red]Error: {job.error}[/red]")
                     sys.exit(1)
 
                 elif status == "cancelled":
                     progress.stop()
-                    console.print(f"\n[yellow]⚠ Fine-tuning was cancelled[/yellow]")
+                    console.print("\n[yellow]⚠ Fine-tuning was cancelled[/yellow]")
                     sys.exit(1)
 
                 # Wait before next check
@@ -308,11 +310,13 @@ def display_summary(train_examples: int, eval_examples: int, job_id: str):
 
 def main():
     """Main execution flow."""
-    console.print(Panel.fit(
-        "[bold cyan]OpenAI Fine-Tuning Script[/bold cyan]\n"
-        "Training a model to write like Sor Juana Inés de la Cruz",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]OpenAI Fine-Tuning Script[/bold cyan]\n"
+            "Training a model to write like Sor Juana Inés de la Cruz",
+            border_style="cyan",
+        )
+    )
 
     # Step 1: Validate API key
     console.print("\n[bold]Step 1: Validating API key[/bold]")
@@ -341,7 +345,7 @@ def main():
         training_file_id=train_file_id,
         validation_file_id=eval_file_id,
         model=FINE_TUNE_CONFIG["model"],
-        suffix="sor-juana"
+        suffix="sor-juana",
     )
 
     # Display summary
@@ -352,26 +356,28 @@ def main():
     console.print("Do you want to monitor the training progress? [Y/n]: ", end="")
 
     response = input().strip().lower()
-    if response in ['', 'y', 'yes']:
+    if response in ["", "y", "yes"]:
         model_id = monitor_fine_tuning_job(client, job_id)
 
         if model_id:
-            console.print(Panel.fit(
-                f"[bold green]✓ Training Complete![/bold green]\n\n"
-                f"Your fine-tuned model: [cyan]{model_id}[/cyan]\n\n"
-                f"Use it with:\n"
-                f"[yellow]from openai import OpenAI\n"
-                f"client = OpenAI()\n"
-                f"response = client.chat.completions.create(\n"
-                f"    model='{model_id}',\n"
-                f"    messages=[...]\n"
-                f")[/yellow]",
-                border_style="green"
-            ))
+            console.print(
+                Panel.fit(
+                    f"[bold green]✓ Training Complete![/bold green]\n\n"
+                    f"Your fine-tuned model: [cyan]{model_id}[/cyan]\n\n"
+                    f"Use it with:\n"
+                    f"[yellow]from openai import OpenAI\n"
+                    f"client = OpenAI()\n"
+                    f"response = client.chat.completions.create(\n"
+                    f"    model='{model_id}',\n"
+                    f"    messages=[...]\n"
+                    f")[/yellow]",
+                    border_style="green",
+                )
+            )
     else:
-        console.print(f"\n[cyan]Job is running in the background.[/cyan]")
+        console.print("\n[cyan]Job is running in the background.[/cyan]")
         console.print(f"Check status at: https://platform.openai.com/finetune/{job_id}")
-        console.print(f"\nOr use this script to monitor:")
+        console.print("\nOr use this script to monitor:")
         console.print(f"[yellow]python scripts/monitor_job.py {job_id}[/yellow]")
 
 
@@ -384,5 +390,6 @@ if __name__ == "__main__":
     except Exception as e:
         console.print(f"\n[red]❌ Error: {e}[/red]")
         import traceback
+
         console.print(traceback.format_exc())
         sys.exit(1)

@@ -16,7 +16,6 @@ try:
     from openai import OpenAI
     from rich.console import Console
     from rich.panel import Panel
-    from rich.markdown import Markdown
 except ImportError:
     print("❌ Missing dependencies. Install with:")
     print("   pip install openai rich")
@@ -42,6 +41,10 @@ TEST_PROMPTS = [
         "name": "Verso sobre la fe",
         "prompt": "Escribe versos sobre la relación entre fe y razón.",
     },
+    {
+        "name": "Todos debemos de programar",
+        "prompt": "Escribe una reflexión filosófica sobre la necesidad de programar, y como las mujeres deben de estar involucradas en el desarrollo de software",
+    },
 ]
 
 
@@ -56,7 +59,7 @@ def load_model_id_from_file() -> str:
         console.print("  python scripts/test_model.py <model_id>")
         sys.exit(1)
 
-    with open(model_file, 'r') as f:
+    with open(model_file, "r") as f:
         data = json.load(f)
 
     return data.get("model_id")
@@ -77,15 +80,12 @@ def test_model(client: OpenAI, model_id: str, prompt: str, max_tokens: int = 500
     """
     system_message = (
         "Eres Sor Juana Inés de la Cruz, poeta y pensadora del siglo XVII. "
-        "Escribes en estilo barroco con profundidad teológica, filosófica y feminista."
+        "Escribes en estilo barroco con profundidad teológica, filosófica y sobre todo feminista."
     )
 
     response = client.chat.completions.create(
         model=model_id,
-        messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": prompt}
-        ],
+        messages=[{"role": "system", "content": system_message}, {"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         temperature=0.8,  # Higher temperature for more creative output
     )
@@ -95,11 +95,7 @@ def test_model(client: OpenAI, model_id: str, prompt: str, max_tokens: int = 500
 
 def compare_with_base_model(client: OpenAI, fine_tuned_model: str, prompt: str):
     """Compare fine-tuned model output with base model."""
-    console.print(Panel.fit(
-        f"[bold cyan]Comparison Test[/bold cyan]\n"
-        f"Prompt: {prompt}",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit(f"[bold cyan]Comparison Test[/bold cyan]\n" f"Prompt: {prompt}", border_style="cyan"))
 
     # Generate with fine-tuned model
     console.print("\n[bold green]Fine-tuned Model Output:[/bold green]")
@@ -118,18 +114,20 @@ def compare_with_base_model(client: OpenAI, fine_tuned_model: str, prompt: str):
 
 def interactive_mode(client: OpenAI, model_id: str):
     """Interactive mode for testing custom prompts."""
-    console.print(Panel.fit(
-        "[bold cyan]Interactive Mode[/bold cyan]\n"
-        "Enter prompts to generate text in Sor Juana's style.\n"
-        "Type 'quit' or 'exit' to stop.",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]Interactive Mode[/bold cyan]\n"
+            "Enter prompts to generate text in Sor Juana's style.\n"
+            "Type 'quit' or 'exit' to stop.",
+            border_style="cyan",
+        )
+    )
 
     while True:
         console.print("\n[bold]Enter your prompt:[/bold]")
         prompt = input("> ").strip()
 
-        if prompt.lower() in ['quit', 'exit', 'q']:
+        if prompt.lower() in ["quit", "exit", "q"]:
             break
 
         if not prompt:
@@ -143,11 +141,12 @@ def interactive_mode(client: OpenAI, model_id: str):
 
 
 def main():
-    console.print(Panel.fit(
-        "[bold cyan]Fine-Tuned Model Testing[/bold cyan]\n"
-        "Test the Sor Juana writing style model",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]Fine-Tuned Model Testing[/bold cyan]\n" "Test the Sor Juana writing style model",
+            border_style="cyan",
+        )
+    )
 
     # Get model ID
     if len(sys.argv) > 1:
@@ -181,14 +180,14 @@ def main():
             console.print(f"Prompt: [italic]{test['prompt']}[/italic]\n")
 
             with console.status("[cyan]Generating...[/cyan]"):
-                output = test_model(client, model_id, test['prompt'])
+                output = test_model(client, model_id, test["prompt"])
 
             console.print(Panel(output, border_style="green"))
             console.print("\n" + "─" * 80 + "\n")
 
     elif choice == "2":
         # Compare with base model
-        prompt = TEST_PROMPTS[0]['prompt']  # Use first test prompt
+        prompt = TEST_PROMPTS[0]["prompt"]  # Use first test prompt
         compare_with_base_model(client, model_id, prompt)
 
     elif choice == "3":
@@ -214,5 +213,6 @@ if __name__ == "__main__":
     except Exception as e:
         console.print(f"\n[red]❌ Error: {e}[/red]")
         import traceback
+
         console.print(traceback.format_exc())
         sys.exit(1)
