@@ -48,10 +48,77 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # OpenAI fine-tuning configuration
 FINE_TUNE_CONFIG = {
     "model": "gpt-4o-mini-2024-07-18",  # Base model to fine-tune
-    "n_epochs": 3,  # Number of training epochs
-    "batch_size": None,  # Auto-select batch size
-    "learning_rate_multiplier": None,  # Auto-select learning rate
+    "n_epochs": 6,  # Increased for small dataset (was 3)
+    "batch_size": 1,  # Small batch size for small dataset (was None/auto)
+    "learning_rate_multiplier": 1.8,  # Higher for small dataset (was None/auto)
 }
+
+# Data quality filters
+MIN_WORD_COUNT = 40  # Minimum words per example (filters out titles/fragments)
+MAX_WORD_COUNT = 500  # Maximum words (avoid very long texts that may be multiple works)
+MIN_CHAR_LENGTH = 200  # Minimum characters (was 50)
+EXCLUDE_CHUNK_TYPES = {"heading", "title"}  # Filter out non-content chunks
+
+
+def get_diverse_prompt(text: str, metadata: dict) -> str:
+    """
+    Generate diverse, specific prompts based on content and metadata.
+
+    Creates varied prompts covering different themes and genres to help
+    the model learn Sor Juana's style across different contexts.
+
+    Args:
+        text: The text content
+        metadata: Metadata dict with genre, title, etc.
+
+    Returns:
+        A specific, contextual prompt
+    """
+    import random
+
+    genre = metadata.get("genre", "").lower()
+
+    # Poetry prompts - varied themes
+    poetry_prompts = [
+        "Escribe un soneto barroco sobre el amor imposible y el desengaño.",
+        "Compón versos filosóficos sobre la naturaleza del conocimiento y la sabiduría.",
+        "Crea una redondilla ingeniosa criticando la hipocresía de los hombres.",
+        "Escribe un poema contemplativo sobre la fugacidad de la belleza y el tiempo.",
+        "Compón versos sobre la condición de la mujer y la injusticia social.",
+        "Crea un romance lírico sobre el dolor de la ausencia y la memoria.",
+        "Escribe una décima reflexiva sobre la vanidad de las glorias mundanas.",
+        "Compón versos místicos sobre el amor divino y la fe.",
+        "Crea un poema conceptista lleno de agudezas y paradojas.",
+        "Escribe versos sobre la noche, las estrellas y la contemplación celestial.",
+    ]
+
+    # Prose prompts - letters, reflections
+    prose_prompts = [
+        "Escribe una reflexión filosófica en prosa sobre la educación de las mujeres.",
+        "Redacta una carta defendiendo el derecho de la mujer al estudio.",
+        "Compón una disertación sobre la relación entre razón y fe.",
+        "Escribe un ensayo breve sobre las vanidades del mundo cortesano.",
+        "Redacta una meditación sobre el conocimiento y sus límites.",
+        "Compón una defensa elocuente del estudio y las letras.",
+        "Escribe una reflexión teológica con referencias clásicas.",
+        "Redacta un texto argumentativo sobre la igualdad intelectual.",
+    ]
+
+    # General baroque style prompts
+    general_prompts = [
+        "Escribe en tu característico estilo barroco, con cultismos y referencias mitológicas.",
+        "Compón un texto literario con conceptos agudos y lenguaje elevado.",
+        "Crea una obra que combine profundidad intelectual y belleza poética.",
+        "Escribe con el ingenio y la erudición que te caracterizan.",
+    ]
+
+    # Select prompt based on genre
+    if "poes" in genre or "poetry" in genre:
+        return random.choice(poetry_prompts)
+    elif "letter" in genre or "carta" in genre or "prose" in genre:
+        return random.choice(prose_prompts)
+    else:
+        return random.choice(general_prompts)
 
 
 def validate_api_key() -> OpenAI:
@@ -103,6 +170,8 @@ def transform_to_openai_format(input_file: Path, output_file: Path, max_examples
     )
 
     examples_processed = 0
+    examples_skipped = 0
+    skip_reasons = {"too_short": 0, "too_long": 0, "bad_type": 0, "low_word_count": 0}
 
     with open(input_file, "r", encoding="utf-8") as infile, open(output_file, "w", encoding="utf-8") as outfile:
         for line in infile:
@@ -113,18 +182,35 @@ def transform_to_openai_format(input_file: Path, output_file: Path, max_examples
             text = item.get("text", "").strip()
             metadata = item.get("metadata", {})
 
-            # Skip very short texts (likely not meaningful content)
-            if len(text) < 50:
+            # Quality filters
+            word_count = metadata.get("word_count", len(text.split()))
+            chunk_type = metadata.get("chunk_type", "").lower()
+
+            # Filter 1: Skip headings and titles
+            if chunk_type in EXCLUDE_CHUNK_TYPES:
+                examples_skipped += 1
+                skip_reasons["bad_type"] += 1
                 continue
 
-            # Create genre-specific user prompts
-            genre = metadata.get("genre", "poetry")
-            if "poetry" in genre.lower() or "poesia" in genre.lower():
-                user_prompt = "Escribe un poema o verso en tu característico estilo barroco."
-            elif "letter" in genre.lower() or "carta" in genre.lower():
-                user_prompt = "Escribe una carta o reflexión en tu estilo literario."
-            else:
-                user_prompt = "Escribe en tu característico estilo barroco y filosófico."
+            # Filter 2: Minimum character length
+            if len(text) < MIN_CHAR_LENGTH:
+                examples_skipped += 1
+                skip_reasons["too_short"] += 1
+                continue
+
+            # Filter 3: Word count bounds
+            if word_count < MIN_WORD_COUNT:
+                examples_skipped += 1
+                skip_reasons["low_word_count"] += 1
+                continue
+
+            if word_count > MAX_WORD_COUNT:
+                examples_skipped += 1
+                skip_reasons["too_long"] += 1
+                continue
+
+            # Generate diverse, specific prompt
+            user_prompt = get_diverse_prompt(text, metadata)
 
             # Create OpenAI training example
             training_example = {
@@ -139,6 +225,12 @@ def transform_to_openai_format(input_file: Path, output_file: Path, max_examples
             examples_processed += 1
 
     console.print(f"[green]✓[/green] Processed {examples_processed} examples")
+    console.print(f"[yellow]⚠[/yellow] Skipped {examples_skipped} examples:")
+    console.print(f"    - Too short (<{MIN_CHAR_LENGTH} chars): {skip_reasons['too_short']}")
+    console.print(f"    - Too few words (<{MIN_WORD_COUNT} words): {skip_reasons['low_word_count']}")
+    console.print(f"    - Too long (>{MAX_WORD_COUNT} words): {skip_reasons['too_long']}")
+    console.print(f"    - Bad type (heading/title): {skip_reasons['bad_type']}")
+
     return examples_processed
 
 
