@@ -1,5 +1,83 @@
-# Enseñar a un LLM a Escribir como Sor Juana
+---
+theme: default
+background: https://source.unsplash.com/collection/94734566/1920x1080
+class: text-center
+highlighter: shiki
+lineNumbers: false
+info: |
+  ## Enseñar a un LLM a Escribir como Sor Juana
+  Teaching an LLM to Write Like Sor Juana Inés de la Cruz
+drawings:
+  persist: false
+transition: slide-left
+title: Teaching an LLM to Write Like Sor Juana
+---
+
+# Como enseñar a un LLM a Escribir como Sor Juana
 ### Teaching an LLM to Write Like Sor Juana
+
+<div class="stream-starting-soon">
+  <div class="main-text animate-pulse-slow">
+    <h1 class="text-8xl font-bold mb-8">Stream Comenzará Pronto</h1>
+    <h2 class="text-4xl opacity-80">Starting Soon</h2>
+  </div>
+
+  <div class="loading-dots mt-12">
+    <span class="dot animate-bounce" style="animation-delay: 0s">●</span>
+    <span class="dot animate-bounce" style="animation-delay: 0.2s">●</span>
+    <span class="dot animate-bounce" style="animation-delay: 0.4s">●</span>
+  </div>
+</div>
+
+<style>
+.stream-starting-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: gradient-shift 3s ease infinite;
+}
+
+.main-text {
+  text-align: center;
+  color: white;
+  text-shadow: 0 0 20px rgba(255,255,255,0.5);
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.loading-dots {
+  display: flex;
+  gap: 1rem;
+}
+
+.dot {
+  font-size: 3rem;
+  color: white;
+  display: inline-block;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+</style>
+
 ---
 
 ## El reto: capturar una voz literaria
