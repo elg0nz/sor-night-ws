@@ -1,0 +1,282 @@
+# Enseñar a un LLM a Escribir como Sor Juana
+### Teaching an LLM to Write Like Sor Juana
+---
+
+## El reto: capturar una voz literaria
+### The challenge: capturing a literary voice
+
+- Objetivo: entrenar un modelo al estilo Sor Juana
+  **Goal:** fine-tune a model in Sor Juana's style
+- Poeta y pensadora del siglo XVII
+  **17th-century poet and scholar**
+- Estilo: barroco, feminista, teológico
+  **Style: baroque, feminist, theological**
+- ¿Cómo medir éxito?
+  **How do we measure success?**
+- BLEU/ROUGE no sirven para creatividad
+  **BLEU/ROUGE fail for creative work**
+---
+
+## Por qué necesitamos evals
+### Why we need evals
+
+- Los modelos fallan en bordes
+  **Models fail on edge cases**
+- Intuición ≠ calidad real
+  **Feeling ≠ objective quality**
+- Sin evals volamos a ciegas
+  **Without evals we fly blind**
+- Necesitamos métricas de autenticidad
+  **We need measurable authenticity**
+- Producción exige confianza
+  **Production requires confidence**
+---
+
+## Qué son las evals
+### What evals are
+
+**Definición:** pruebas repetibles que miden comportamiento.
+**Definition:** reproducible tests that measure behavior.
+
+- Repetibles
+  **Reproducible**
+- Cuantificables
+  **Quantifiable**
+- Enfocadas en el objetivo
+  **Goal-aligned**
+- Escalables
+  **Scalable**
+
+_Source: OpenAI Evals Framework_
+---
+
+## Paso 1: Construir el dataset
+### Step 1: Build the dataset
+
+- Obras completas de Sor Juana
+  **Collect full works**
+- ~264 textos
+  **~264 pieces**
+- Descargar de archivos públicos
+  **Download from public archives**
+- CSV con metadatos
+  **Structured CSV with metadata**
+- Convertir a JSONL
+  **Convert to JSONL**
+---
+
+## Paso 2: Preparar los datos
+### Step 2: Prepare training data
+
+- Formato: pares prompt–completion
+  **Format: prompt–completion pairs**
+- Ejemplo JSONL incluido
+  **Example JSONL shown**
+- 80% entrenamiento / 20% evaluación
+  **80% train / 20% eval**
+- Filtrar por calidad
+  **Quality filtering**
+- Mantener géneros
+  **Preserve genre diversity**
+---
+
+## Paso 3: Criterios de evaluación
+### Step 3: Evaluation criteria
+
+- Evals requieren config + criterios
+  **Needs config + criteria**
+- Rubrica 1–5 de autenticidad:
+  **1–5 authenticity rubric:**
+  - Estilo barroco
+    **Baroque style**
+  - Temas clásicos de Sor Juana
+    **Thematic alignment**
+  - Vocabulario de época
+    **Period vocabulary**
+  - Forma (soneto, décima)
+    **Formal structure**
+
+_Source: OpenAI Evals API_
+---
+
+## Paradigma: modelo + personas
+### Paradigm: model-graded + human review
+
+- GPT-4 aplica la rúbrica
+  **GPT-4 applies rubric**
+- Creatividad tiene alta variación
+  **Creative work varies a lot**
+- Expertos revisan casos difíciles
+  **Experts review edge cases**
+- En conjunto escalan precisión
+  **Hybrid = scale + accuracy**
+- Comparación por pares
+  **Pairwise comparisons**
+
+_Source: OpenAI Best Practices_
+---
+
+## Paso 4: Fine-tuning
+### Step 4: Fine-tuning
+
+- Subir training.jsonl y eval.jsonl
+  **Upload training + eval files**
+- Elegir modelo base
+  **Pick base model**
+- Ajustar hiperparámetros
+  **Tune hyperparameters**
+- Revisar métricas
+  **Monitor metrics**
+- Validación automática
+  **Auto-validation runs**
+---
+
+## Paso 5: Evals automáticas
+### Step 5: Automated evals
+
+- Usar Evals API
+  **Use Evals API**
+- Config YAML
+  **YAML config**
+- Definir dataset y criterios
+  **Specify dataset + criteria**
+- Reportes visuales
+  **Visual reports**
+- Métricas clave: estilo, tema, forma
+  **Metrics: style, theme, structure**
+---
+
+## Paso 6: Validación humana
+### Step 6: Human-in-the-loop
+
+- Evals marcan casos dudosos
+  **Evals flag weak outputs**
+- Expertos los revisan
+  **Experts review them**
+- Califican por autenticidad
+  **Rate authenticity**
+- Guardar feedback
+  **Collect feedback**
+- Mejorar dataset
+  **Improve dataset**
+---
+
+## Ciclo virtuoso
+### The virtuous cycle
+
+- Evals muestran fallas
+  **Evals reveal gaps**
+- Añadir ejemplos necesarios
+  **Add missing examples**
+- Ajustar rúbrica
+  **Refine rubric**
+- Reentrenar
+  **Retrain**
+- Reevaluar
+  **Re-evaluate**
+- Iterar
+  **Iterate**
+---
+
+## Componentes de OpenAI Evals
+### Components of OpenAI Evals
+
+- Evals básicas
+  **Basic evals**
+- Modelo como juez
+  **Model-graded evals**
+- Evals Registry
+  **Registry templates**
+- Evals personalizadas
+  **Custom evals**
+- Evaluación continua
+  **Continuous eval**
+---
+
+## Principios clave
+### Key principles
+
+- Expertos definen verdad base
+  **Experts define ground truth**
+- Modelo para escala / humanos para precisión
+  **Model for scale / humans for accuracy**
+- Probar géneros y tonos
+  **Test genres and tones**
+- Votos por consenso
+  **Consensus voting**
+- Controlar longitud
+  **Control length bias**
+- Medir autenticidad
+  **Measure authenticity**
+---
+
+## Qué NO hacer
+### What NOT to do
+
+- Confiar solo en BLEU/ROUGE
+  **Don't rely only on BLEU/ROUGE**
+- Sobreajustar
+  **Don't overfit**
+- Saltar revisión humana
+  **Don't skip human review**
+- Sin baseline
+  **Don't skip baselines**
+- Ignorar géneros
+  **Don't ignore genres**
+- Seleccionar solo lo bueno
+  **Don't cherry-pick**
+---
+
+## Resultados esperados
+### What success looks like
+
+- Sonetos al estilo Sor Juana
+  **Sonnets in Sor Juana's voice**
+- Consistencia temática
+  **Consistent themes**
+- Expertos califican ≥4/5
+  **Experts rate ≥4/5**
+- Mejora medible
+  **Measurable improvement**
+- Falla con gracia
+  **Graceful failure**
+- Monitoreo continuo
+  **Continuous monitoring**
+---
+
+## Pipeline completo
+### Full pipeline
+
+1. Corpus + metadata
+   **Corpus + metadata**
+2. JSONL + split
+   **JSONL + split**
+3. Rúbrica + config
+   **Rubric + config**
+4. Fine-tuning
+   **Fine-tuning**
+5. Evals automáticas
+   **Automated evals**
+6. Revisión humana
+   **Human review**
+7. Iteración
+   **Iteration**
+8. Deploy + monitoreo
+   **Deploy + monitoring**
+---
+
+## Conclusiones
+### Key takeaways
+
+- Evals vuelven medible lo subjetivo
+  **Evals make subjective goals measurable**
+- Marco útil para tareas literarias
+  **Framework fits literary tasks**
+- Escala con modelos, precisión con humanas
+  **Scale with models, accuracy with humans**
+- Iterar rápido y con confianza
+  **Iterate faster with confidence**
+- Evaluar siempre
+  **Evaluation is continuous**
+- La pericia humana es clave
+  **Human expertise is essential**
