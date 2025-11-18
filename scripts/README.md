@@ -1,251 +1,202 @@
-# OpenAI Fine-Tuning Scripts
+# Sor Juana Scripts
 
-Complete toolkit for fine-tuning an OpenAI model to write in the style of Sor Juana Inés de la Cruz.
+This directory contains utility scripts for the Sor Juana project.
 
-## Prerequisites
+## Available Scripts
 
-1. **Install dependencies:**
-   ```bash
-   pip install openai rich
-   ```
+### `quick_start.sh`
 
-2. **Set your OpenAI API key:**
-   ```bash
-   export OPENAI_API_KEY='your-api-key-here'
-   ```
+Quick start script for setting up and running the project.
 
-3. **Build the corpus** (if not done already):
-   ```bash
-   sor-juana build
-   ```
-
-## Scripts
-
-### 1. `train_openai.py` - Main Training Script
-
-Handles the complete fine-tuning pipeline:
-- Transforms corpus data to OpenAI's format
-- Uploads training and validation files
-- Creates a fine-tuning job
-- Monitors training progress
-
-**Usage:**
 ```bash
-python scripts/train_openai.py
+./scripts/quick_start.sh
 ```
 
-**What it does:**
-1. Loads `data/train.jsonl` and `data/eval.jsonl`
-2. Transforms them into chat format with proper prompts
-3. Uploads to OpenAI
-4. Creates a fine-tuning job on `gpt-4o-mini-2024-07-18`
-5. Optionally monitors progress until completion
+This script:
+1. Installs dependencies
+2. Downloads and builds the corpus
+3. Splits data into train/eval sets
+4. Provides next steps for training
 
-**Output:**
-- Transformed files: `data/openai_training/train_openai.jsonl` and `eval_openai.jsonl`
-- Model info: `data/openai_training/fine_tuned_model.json`
+## CLI Reference
 
-**Configuration:**
+All training and evaluation functionality is available through the `sor-juana` CLI command, which uses DBOS workflows for reliable, durable execution.
 
-Edit the `FINE_TUNE_CONFIG` dictionary in the script to adjust:
-- `model`: Base model to fine-tune
-- `n_epochs`: Number of training epochs (default: 3)
-- `batch_size`: Batch size (default: auto)
-- `learning_rate_multiplier`: Learning rate (default: auto)
-
-### 2. `monitor_job.py` - Monitor Existing Jobs
-
-Check status and monitor an existing fine-tuning job.
-
-**Usage:**
-```bash
-python scripts/monitor_job.py <job_id>
-```
-
-**Example:**
-```bash
-python scripts/monitor_job.py ftjob-abc123
-```
-
-**Features:**
-- Shows detailed job status
-- Displays recent training events
-- Optionally monitors until completion
-- Shows final model ID when done
-
-### 3. `test_model.py` - Test Fine-Tuned Model
-
-Generate text using your fine-tuned model and compare with the base model.
-
-**Usage:**
-```bash
-# Auto-load model from training output
-python scripts/test_model.py
-
-# Or specify model ID directly
-python scripts/test_model.py ft:gpt-4o-mini-2024-07-18:org:sor-juana:abc123
-```
-
-**Test Modes:**
-
-1. **Predefined Prompts**: Run a suite of test prompts covering different genres
-2. **Comparison Mode**: Compare fine-tuned vs. base model outputs
-3. **Interactive Mode**: Enter custom prompts and generate text in real-time
-
-**Example prompts:**
-- "Escribe un soneto sobre la búsqueda del conocimiento"
-- "Escribe una reflexión poética sobre la naturaleza del amor"
-- "Escribe versos sobre la relación entre fe y razón"
-
-## Complete Workflow
-
-### Step-by-step guide:
+### Corpus Management
 
 ```bash
-# 1. Set your API key
-export OPENAI_API_KEY='sk-...'
-
-# 2. Install dependencies
-pip install openai rich
-
-# 3. Build the corpus (if needed)
+# Build corpus from all sources
 sor-juana build
 
-# 4. Start fine-tuning
-python scripts/train_openai.py
+# Export to different formats
+sor-juana export --format jsonl
+sor-juana export-csv
 
-# 5. (Optional) Monitor a running job
-python scripts/monitor_job.py ftjob-abc123
+# View statistics
+sor-juana stats
 
-# 6. Test your model
-python scripts/test_model.py
+# List texts
+sor-juana list --source all
+
+# Split into train/eval
+sor-juana split --eval-ratio 0.15
+
+# Clear corpus
+sor-juana clear
 ```
 
-## Data Format
+### Training
 
-### Input Format (Corpus JSONL)
-```json
-{
-  "text": "Poetic text by Sor Juana...",
-  "metadata": {
-    "source": "gutenberg",
-    "genre": "poetry",
-    "title": "..."
-  }
-}
-```
-
-### OpenAI Training Format (Generated)
-```json
-{
-  "messages": [
-    {
-      "role": "system",
-      "content": "Eres Sor Juana Inés de la Cruz, poeta y pensadora del siglo XVII..."
-    },
-    {
-      "role": "user",
-      "content": "Escribe un poema en tu característico estilo barroco."
-    },
-    {
-      "role": "assistant",
-      "content": "Poetic text from corpus..."
-    }
-  ]
-}
-```
-
-## Cost Estimation
-
-Fine-tuning costs depend on:
-- Number of tokens in training data
-- Number of epochs
-- Base model used
-
-**Approximate costs** (as of 2024):
-- Training: ~$8-15 for gpt-4o-mini with ~500K tokens
-- Inference: Same as base model + small fine-tuning fee
-
-Check current pricing: https://openai.com/pricing
-
-## Troubleshooting
-
-### "OPENAI_API_KEY not set"
 ```bash
-export OPENAI_API_KEY='your-key-here'
+# OpenAI fine-tuning
+sor-juana train openai [OPTIONS]
+  --train-file PATH       Training JSONL file (default: data/train.jsonl)
+  --eval-file PATH        Evaluation JSONL file (default: data/eval.jsonl)
+  --model TEXT           Base model (default: gpt-4o-mini-2024-07-18)
+  --suffix TEXT          Model name suffix (default: sor-juana)
+  --monitor/--no-monitor  Monitor progress (default: monitor)
+
+# Monitor job
+sor-juana train monitor JOB_ID [OPTIONS]
+  --poll-interval INTEGER  Seconds between checks (default: 60)
+
+# Local training (Apple Silicon/MLX)
+sor-juana train local [OPTIONS]
+  --csv PATH              CSV file with prompt/completion pairs
+  --model TEXT           Base model (default: meta-llama/Llama-2-7b)
+  --output PATH          Output directory (default: ./sor_juana_model)
+  --eval-only            Skip training, only evaluate
+  --sample-size INTEGER  Number of examples to evaluate (default: 20)
 ```
 
-### "File not found: train.jsonl"
-Make sure to build the corpus first:
+### Testing & Evaluation
+
 ```bash
+# Test model with predefined prompts
+sor-juana test model [MODEL_ID]
+
+# Test with custom prompt
+sor-juana test model [MODEL_ID] --prompt "Your prompt here"
+
+# Compare with base model
+sor-juana test model [MODEL_ID] --prompt "Your prompt" --compare
+
+# Generate sample with local model
+sor-juana test sample --prompt "Your prompt" [OPTIONS]
+  --model TEXT  Model name (default: meta-llama/Llama-2-7b)
+```
+
+## Architecture
+
+The application uses DBOS workflows for all training and evaluation operations:
+
+```
+sor_juana/
+├── training.py         # OpenAI fine-tuning workflows
+├── evaluation.py       # Model testing & evaluation workflows  
+├── local_training.py   # Local MLX training workflows
+├── workflows.py        # Corpus building workflows
+└── cli.py             # Unified CLI interface
+```
+
+Each module contains:
+- **@DBOS.step()**: Individual operations (API calls, file operations, etc.)
+- **@DBOS.workflow()**: Orchestrated multi-step processes
+- **Queue**: Managed concurrency for parallel operations
+
+### DBOS Workflow Benefits
+
+- **Durable Execution**: Workflows automatically resume from the last completed step if interrupted
+- **Reliability**: Built-in retry logic and error handling
+- **Observability**: Track workflow progress and status via admin server (port 3001)
+- **Concurrency**: Managed parallel execution with queues
+- **State Management**: Automatic state persistence in the database
+
+## Environment Variables
+
+Make sure to set required environment variables:
+
+```bash
+# For OpenAI fine-tuning and testing
+export OPENAI_API_KEY='your-api-key-here'
+
+# Optional: DBOS system database URL
+export DBOS_SYSTEM_DATABASE_URL='postgresql://user:pass@host:port/dbname'
+```
+
+## Example Workflow
+
+Complete workflow from corpus to fine-tuned model:
+
+```bash
+# 1. Build the corpus
 sor-juana build
+
+# 2. Split into train/eval sets
+sor-juana split --eval-ratio 0.15
+
+# 3. Start OpenAI fine-tuning
+sor-juana train openai --monitor
+
+# 4. Test the fine-tuned model
+sor-juana test model
+
+# 5. Compare with base model
+sor-juana test model --prompt "Escribe un soneto sobre el conocimiento" --compare
 ```
 
-### "Fine-tuning failed"
-Check the job status for error details:
-```bash
-python scripts/monitor_job.py <job_id>
-```
+## Development
 
-Common issues:
-- Training file too small (need >10 examples)
-- Malformed JSONL
-- Insufficient API credits
+The DBOS architecture makes it easy to extend functionality:
 
-### "Missing dependencies"
-```bash
-pip install openai rich
-```
+1. **Add new workflows**: Create new `@DBOS.workflow()` functions
+2. **Add new steps**: Create new `@DBOS.step()` functions
+3. **Extend CLI**: Add new commands in `cli.py`
+4. **Monitor workflows**: Use DBOS admin server (runs on port 3001 by default)
 
-## Advanced Usage
-
-### Custom System Prompt
-
-Edit the `system_message` in `train_openai.py` (line 91):
+### Example: Adding a New Workflow
 
 ```python
-system_message = (
-    "Your custom system message here..."
-)
+# In sor_juana/training.py
+
+@DBOS.step()
+def my_new_step(param: str) -> dict:
+    """Step description."""
+    # Your code here
+    return {"result": "success"}
+
+@DBOS.workflow()
+def my_new_workflow(input_data: str) -> dict:
+    """Workflow description."""
+    result = my_new_step(input_data)
+    return result
 ```
 
-### Custom User Prompts
-
-Modify the prompt generation logic in `transform_to_openai_format()` (lines 102-110):
+Then add a CLI command in `cli.py`:
 
 ```python
-# Add genre-specific or custom prompts
-if "poetry" in genre.lower():
-    user_prompt = "Your custom prompt..."
-```
-
-### Hyperparameter Tuning
-
-Adjust in `train_openai.py`:
-
-```python
-FINE_TUNE_CONFIG = {
-    "model": "gpt-4o-mini-2024-07-18",
-    "n_epochs": 5,  # More epochs for better learning
-    "batch_size": 4,  # Smaller batch for more updates
-    "learning_rate_multiplier": 1.5,  # Faster learning
-}
+@train.command(name="my-command")
+@click.option("--input", required=True)
+def my_command(input: str):
+    """Command description."""
+    from .training import my_new_workflow
+    
+    launch_dbos()
+    result = my_new_workflow(input)
+    console.print(f"Result: {result}")
+    shutdown_dbos()
 ```
 
 ## Resources
 
+- [DBOS Documentation](https://docs.dbos.dev/)
+- [DBOS Python Workflows](https://docs.dbos.dev/python/tutorials/workflow-tutorial)
 - [OpenAI Fine-tuning Guide](https://platform.openai.com/docs/guides/fine-tuning)
-- [OpenAI API Reference](https://platform.openai.com/docs/api-reference/fine-tuning)
-- [Best Practices for Fine-tuning](https://platform.openai.com/docs/guides/fine-tuning/preparing-your-dataset)
+- [MLX Documentation](https://ml-explore.github.io/mlx/)
 
 ## Support
 
-For issues specific to these scripts, please check:
-1. The script's inline comments
-2. This README
-3. OpenAI's documentation
-4. The project's main README
-
----
-
-**Happy fine-tuning!** 🎨📚
+For issues or questions:
+1. Check the main project README
+2. Review DBOS documentation
+3. Check workflow status: `http://localhost:3001` (DBOS admin server)

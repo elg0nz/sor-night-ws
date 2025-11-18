@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sor-juana-downloader"
-version = "0.1.0"
+version = "0.2.0"
 description = "DBOS-powered downloader and processor for Sor Juana Inés de la Cruz texts"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"

@@ -143,85 +143,61 @@ sor-juana list --source bvmc
 sor-juana clear
 ```
 
-## Training Scripts
+## Model Training & Evaluation
 
-The `scripts/` directory contains utilities for fine-tuning language models on Sor Juana's writing style:
+The application includes DBOS-powered workflows for fine-tuning and evaluating language models on Sor Juana's writing style.
 
 ### OpenAI Fine-tuning
 
-#### Train a model (OpenAI API)
-
-Train a GPT-4o-mini model using OpenAI's fine-tuning API:
+Train a GPT-4o-mini model using OpenAI's fine-tuning API with durable DBOS workflows:
 
 ```bash
-python scripts/train_openai.py
+# Start fine-tuning with automatic monitoring
+sor-juana train openai
+
+# Start without monitoring (check status later)
+sor-juana train openai --no-monitor
+
+# Monitor an existing job
+sor-juana train monitor <job_id>
+
+# Custom training files
+sor-juana train openai --train-file path/to/train.jsonl --eval-file path/to/eval.jsonl
 ```
 
-This script:
-1. Loads training and evaluation data from `data/train.jsonl` and `data/eval.jsonl`
-2. Transforms the corpus into OpenAI's chat format
-3. Uploads training files to OpenAI
-4. Creates and monitors a fine-tuning job
-5. Saves the fine-tuned model ID to `data/openai_training/fine_tuned_model.json`
+**Features:**
+- ✅ Durable execution: Automatically resumes if interrupted
+- ✅ Automatic file upload and job creation
+- ✅ Real-time monitoring with status updates
+- ✅ Saves model ID to `data/openai_training/fine_tuned_model.json`
 
 **Requirements:**
 - Set `OPENAI_API_KEY` environment variable
-- Install dependencies: `pip install openai rich`
 - Run `sor-juana split` first to generate train/eval sets
 
 **Configuration:**
-- Base model: `gpt-4o-mini-2024-07-18`
+- Base model: `gpt-4o-mini-2024-07-18` (configurable)
 - Default epochs: 3
 - Batch size: Auto
 - Learning rate multiplier: Auto
 
-#### Monitor a training job
+### Model Testing
 
-Check the status of an existing fine-tuning job:
-
-```bash
-python scripts/monitor_job.py <job_id>
-```
-
-Features:
-- Real-time status updates
-- Training metrics display
-- Event log streaming
-- Auto-refresh (Ctrl+C to exit)
-
-#### Test a fine-tuned model
-
-Generate text using your fine-tuned model:
+Test your fine-tuned models with comprehensive evaluation:
 
 ```bash
-# Use saved model ID
-python scripts/test_model.py
+# Test with predefined prompts (uses saved model ID)
+sor-juana test model
 
-# Use specific model ID
-python scripts/test_model.py ft:gpt-4o-mini-2024-07-18:org:model-id:suffix
+# Test with specific model ID
+sor-juana test model ft:gpt-4o-mini-2024-07-18:org:model-id:suffix
+
+# Test with custom prompt
+sor-juana test model --prompt "Escribe un soneto sobre el conocimiento"
+
+# Compare fine-tuned vs base model
+sor-juana test model --prompt "Your prompt" --compare
 ```
-
-Testing modes:
-1. **Predefined prompts** - Run curated test prompts in Spanish
-2. **Base model comparison** - Compare fine-tuned vs base model outputs
-3. **Interactive mode** - Enter custom prompts interactively
-
-### Local Training (Apple Silicon)
-
-#### Fine-tune locally with MLX
-
-For Apple Silicon Macs (M1/M2/M3/M4), use MLX for local training:
-
-```bash
-python scripts/local-training.py --csv sor_juana_corpus.csv
-```
-
-This script:
-1. Loads CSV data with `prompt` and `completion` columns
-2. Splits into training/evaluation sets (80/20)
-3. Fine-tunes using MLX (optimized for Apple Silicon)
-4. Evaluates model with custom Sor Juana authenticity metrics
-5. Saves evaluation results to JSON
 
 **Evaluation Metrics:**
 - **Baroque style** (0-1): Rhetorical features, complex sentences
@@ -230,22 +206,41 @@ This script:
 - **Structural coherence** (0-1): Sonnet/décima structure, rhyme patterns
 - **Overall score** (1-5): Weighted composite score
 
-**Options:**
+### Local Training (Apple Silicon)
+
+For Apple Silicon Macs (M1/M2/M3/M4), use MLX for local training:
+
 ```bash
-# Evaluation only (no training)
-python scripts/local-training.py --csv data.csv --eval-only
+# Run local training pipeline
+sor-juana train local --csv corpus.csv
 
-# Custom model
-python scripts/local-training.py --csv data.csv --model meta-llama/Llama-2-7b
+# Evaluation only (no fine-tuning)
+sor-juana train local --eval-only
 
-# Generate sample with authenticity scoring
-python scripts/local-training.py --csv data.csv --sample-prompt "Escribe un soneto sobre el conocimiento"
+# Generate and evaluate sample
+sor-juana test sample --prompt "Escribe un soneto sobre el conocimiento" --model meta-llama/Llama-2-7b
 ```
+
+**Features:**
+- MLX-optimized workflows for Apple Silicon
+- Comprehensive style evaluation
+- Batch evaluation on held-out data
+- Sample generation with authenticity scoring
 
 **Requirements:**
 - Apple Silicon Mac (M1/M2/M3/M4)
 - Install: `pip install mlx mlx-lm transformers torch`
-- CSV file with `prompt` and `completion` columns
+- CSV file with `prompt` and `completion` columns (create with `sor-juana export-csv`)
+
+### Workflow Features
+
+All training and evaluation operations use DBOS workflows with:
+- **Durable execution**: Automatically resume from last completed step if interrupted
+- **Reliability**: Built-in retry logic and error handling
+- **Observability**: Track progress via DBOS admin server (port 3001)
+- **Concurrency**: Managed parallel execution with queues
+
+See [`scripts/README.md`](scripts/README.md) for complete CLI reference and advanced usage.
 
 ## Output
 
@@ -315,19 +310,29 @@ sor-night-ws/
 │   │   ├── wikisource.py
 │   │   └── bvmc.py
 │   ├── processing.py         # Text cleaning and deduplication
-│   └── workflows.py          # DBOS workflows
+│   ├── workflows.py          # Corpus building DBOS workflows
+│   ├── training.py           # OpenAI fine-tuning DBOS workflows
+│   ├── evaluation.py         # Model testing DBOS workflows
+│   └── local_training.py     # Local MLX training DBOS workflows
 ├── data/                     # Generated data directory
 │   ├── sor_juana.duckdb      # DuckDB database
 │   ├── train.jsonl          # Training set (after split)
-│   └── eval.jsonl           # Evaluation set (after split)
+│   ├── eval.jsonl           # Evaluation set (after split)
+│   └── openai_training/      # OpenAI training outputs
+│       └── fine_tuned_model.json
+├── scripts/                 # Utility scripts
+│   ├── quick_start.sh       # Quick setup script
+│   └── README.md            # Scripts documentation
 ├── pyproject.toml            # Poetry configuration
 ├── .python-version           # Python version for uv
 ├── README.md                 # This file
+├── CHANGELOG.md             # Version history
 └── CLAUDE.md                 # Claude Code guidance
 ```
 
 ## Dependencies
 
+### Core Dependencies
 - **click**: CLI framework
 - **rich**: Terminal formatting and output
 - **duckdb**: Embedded analytical database
@@ -338,6 +343,19 @@ sor-night-ws/
 - **datasketch**: MinHash LSH for deduplication
 - **nltk**: Natural language processing (sentence tokenization)
 
+### Optional Dependencies
+- **openai**: OpenAI API client (for fine-tuning)
+- **mlx**: MLX framework for Apple Silicon (for local training)
+- **mlx-lm**: MLX language models (for local training)
+- **transformers**: HuggingFace transformers (for local training)
+- **torch**: PyTorch (for local training fallback)
+
+See [`pyproject.toml`](pyproject.toml) for complete dependency list.
+
+## Version History
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history and release notes.
+
 ## License
 
 MIT
@@ -345,4 +363,9 @@ MIT
 ## Contributing
 
 Contributions welcome! Please open an issue or submit a pull request.
+
+For major changes, please:
+1. Update the CHANGELOG.md
+2. Update version numbers in `pyproject.toml` and `sor_juana/cli.py`
+3. Follow semantic versioning (https://semver.org/)
 
